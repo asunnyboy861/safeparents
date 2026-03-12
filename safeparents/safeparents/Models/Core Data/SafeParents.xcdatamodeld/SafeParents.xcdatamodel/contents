@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22225" systemVersion="23F79" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="NO" userDefinedModelVersionIdentifier="">
+    <entity name="CheckIn" representedClassName="CheckIn" syncable="YES" codeGenerationType="class">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="status" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="parent" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Parent" inverseName="checkIns" inverseEntity="Parent"/>
+    </entity>
+    <entity name="CheckInSchedule" representedClassName="CheckInSchedule" syncable="YES" codeGenerationType="class">
+        <attribute name="days" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromDataTransformerName" customClassName="[Int]"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="reminderOffset" attributeType="Integer 32" defaultValueString="60" usesScalarValueType="YES"/>
+        <attribute name="times" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromDataTransformerName" customClassName="[Date]"/>
+        <relationship name="parent" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Parent" inverseName="checkInSchedule" inverseEntity="Parent"/>
+    </entity>
+    <entity name="FamilyCircle" representedClassName="FamilyCircle" syncable="YES" codeGenerationType="class">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="iCloudShareID" optional="YES" attributeType="String"/>
+        <attribute name="name" attributeType="String"/>
+        <relationship name="members" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Parent" inverseName="familyCircle" inverseEntity="Parent"/>
+    </entity>
+    <entity name="Parent" representedClassName="Parent" syncable="YES" codeGenerationType="class">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="phoneNumber" optional="YES" attributeType="String"/>
+        <attribute name="role" attributeType="String" defaultValueString="parent"/>
+        <attribute name="timeZone" attributeType="String" defaultValueString="America/New_York"/>
+        <relationship name="checkInSchedule" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="CheckInSchedule" inverseName="parent" inverseEntity="CheckInSchedule"/>
+        <relationship name="checkIns" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CheckIn" inverseName="parent" inverseEntity="CheckIn"/>
+        <relationship name="familyCircle" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="FamilyCircle" inverseName="members" inverseEntity="FamilyCircle"/>
+    </entity>
+</model>
