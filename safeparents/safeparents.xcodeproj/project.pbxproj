@@ -671,7 +671,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.zzoutuo.safeparents.----SafeParentsWidget---x20--1---SafeParentsWidget---x20--SafeParentsWidget";
+				PRODUCT_BUNDLE_IDENTIFIER = com.zzoutuo.safeparents.safewid;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -699,7 +699,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.zzoutuo.safeparents.----SafeParentsWidget---x20--1---SafeParentsWidget---x20--SafeParentsWidget";
+				PRODUCT_BUNDLE_IDENTIFIER = com.zzoutuo.safeparents.safewid;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
