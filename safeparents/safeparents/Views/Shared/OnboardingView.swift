@@ -2,61 +2,72 @@ import SwiftUI
 import CoreData
 
 struct OnboardingView: View {
+    var onCompletion: () -> Void
     @State private var currentPage = 0
+    @State private var navigateToProfileSetup = false
     @Environment(\.managedObjectContext) private var viewContext
 
     var body: some View {
-        ZStack {
-            Color.background
-                .ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                Color.background
+                    .ignoresSafeArea()
 
-            VStack(spacing: 24) {
-                TabView(selection: $currentPage) {
-                    welcomePage
-                        .tag(0)
+                VStack(spacing: 24) {
+                    TabView(selection: $currentPage) {
+                        welcomePage
+                            .tag(0)
 
-                    featurePage1
-                        .tag(1)
+                        featurePage1
+                            .tag(1)
 
-                    featurePage2
-                        .tag(2)
+                        featurePage2
+                            .tag(2)
 
-                    featurePage3
-                        .tag(3)
+                        featurePage3
+                            .tag(3)
 
-                    createProfilePage
-                        .tag(4)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut, value: currentPage)
+                        createProfilePage
+                            .tag(4)
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .animation(.easeInOut, value: currentPage)
 
-                VStack(spacing: 16) {
-                    if currentPage < 4 {
-                        HStack(spacing: 8) {
-                            ForEach(0..<5) { index in
-                                Circle()
-                                    .fill(index == currentPage ? Color.infoBlue : Color.secondaryText.opacity(0.3))
-                                    .frame(width: 8, height: 8)
+                    VStack(spacing: 16) {
+                        if currentPage < 4 {
+                            HStack(spacing: 8) {
+                                ForEach(0..<5) { index in
+                                    Circle()
+                                        .fill(index == currentPage ? Color.infoBlue : Color.secondaryText.opacity(0.3))
+                                        .frame(width: 8, height: 8)
+                                }
                             }
-                        }
 
-                        Button(action: {
-                            withAnimation {
-                                currentPage += 1
+                            Button(action: {
+                                withAnimation {
+                                    currentPage += 1
+                                }
+                            }) {
+                                Text(currentPage == 3 ? "Get Started" : "Continue")
+                                    .font(.system(size: UIDevice.isIPad ? 20 : 17, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, UIDevice.isIPad ? 20 : 16)
+                                    .background(Color.infoBlue)
+                                    .cornerRadius(12)
                             }
-                        }) {
-                            Text(currentPage == 3 ? "Get Started" : "Continue")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.infoBlue)
-                                .cornerRadius(12)
+                            .ipadAdaptiveButtonWidth()
                         }
                     }
+                    .ipadAdaptivePadding()
+                    .padding(.bottom, UIDevice.isIPad ? 50 : 32)
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 32)
+            }
+            .navigationBarHidden(true)
+            .navigationDestination(isPresented: $navigateToProfileSetup) {
+                ProfileSetupView(onCompletion: onCompletion)
+                    .environment(\.managedObjectContext, viewContext)
+                    .navigationBarHidden(true)
             }
         }
     }
@@ -179,7 +190,9 @@ struct OnboardingView: View {
 
             Spacer()
 
-            NavigationLink(destination: ProfileSetupView().environment(\.managedObjectContext, viewContext)) {
+            Button(action: {
+                navigateToProfileSetup = true
+            }) {
                 Text("Continue")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.white)
@@ -188,16 +201,17 @@ struct OnboardingView: View {
                     .background(Color.infoBlue)
                     .cornerRadius(12)
             }
+            .ipadAdaptiveButtonWidth()
         }
         .padding()
     }
 }
 
 struct ProfileSetupView: View {
+    var onCompletion: () -> Void
     @State private var name: String = ""
     @State private var role: UserRole = .parent
     @State private var isRequestingNotification = false
-    @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -266,42 +280,70 @@ struct ProfileSetupView: View {
     private func createProfile() {
         isRequestingNotification = true
 
-        let parent = Parent(context: viewContext)
-        parent.id = UUID()
-        parent.name = name
-        parent.role = role.rawValue
-        parent.timeZone = TimeZone.current.identifier
+        Task {
+            await createProfileAsync()
+        }
+    }
 
-        let schedule = CheckInSchedule(context: viewContext)
-        schedule.id = UUID()
-        schedule.times = []
-        schedule.days = [1, 2, 3, 4, 5]
-        schedule.reminderOffset = 60
-        schedule.parent = parent
-        parent.checkInSchedule = schedule
+    private func createProfileAsync() async {
+        await MainActor.run {
+            isRequestingNotification = true
+        }
 
         do {
-            try viewContext.save()
+            try await saveProfileInBackground()
 
-            Task {
-                do {
-                    let granted = try await NotificationService.shared.requestAuthorization()
-                    if granted {
-                        print("Notification authorization granted")
-                    }
-                } catch {
-                    print("Error requesting notification authorization: \(error)")
+            try? await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                let timeoutTask = Task {
+                    try await Task.sleep(nanoseconds: 10_000_000_000)
+                    continuation.resume(throwing: CancellationError())
                 }
 
-                await MainActor.run {
-                    isRequestingNotification = false
-                    UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
-                    dismiss()
+                Task {
+                    do {
+                        _ = try await NotificationService.shared.requestAuthorization()
+                        timeoutTask.cancel()
+                        continuation.resume()
+                    } catch {
+                        timeoutTask.cancel()
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
         } catch {
-            print("Error saving profile: \(error)")
+            print("Profile setup error (non-critical): \(error)")
+        }
+
+        await MainActor.run {
             isRequestingNotification = false
+            UserDefaults.standard.set(true, forKey: AppConstants.UserDefaults.hasCompletedOnboarding)
+            onCompletion()
+        }
+    }
+
+    private func saveProfileInBackground() async throws {
+        let coreDataStack = CoreDataStack.shared
+        let backgroundContext = coreDataStack.newBackgroundContext()
+
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            backgroundContext.perform {
+                let parent = Parent(context: backgroundContext)
+                parent.id = UUID()
+                parent.name = self.name
+                parent.role = self.role.rawValue
+                parent.timeZone = TimeZone.current.identifier
+
+                let schedule = CheckInSchedule(context: backgroundContext)
+                schedule.id = UUID()
+                schedule.timesArray = []
+                schedule.daysArray = [1, 2, 3, 4, 5]
+                schedule.reminderOffset = 60
+                schedule.parent = parent
+                parent.checkInSchedule = schedule
+
+                coreDataStack.saveContext(backgroundContext)
+                continuation.resume()
+            }
         }
     }
 }
